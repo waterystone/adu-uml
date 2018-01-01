@@ -1,0 +1,108 @@
+@startuml
+TagController ..> RecommendTagService
+
+RecommendTagService ..> TagHelper : 1.置顶
+RecommendTagService ..> RecoTagFeedStoreService : 2.热门RECO
+RecommendTagService ..> RecommendTagResult
+
+RecommendTagService ..> TagPhotoService : 3.1.对text标签计数
+TagPhotoService ..> TagBucketDAO : 緩存未命中
+
+RecommendTagService ..> grpc.MMUSearchPhotoTagServiceFutureClient : 3.2.对MMU标签计数
+
+TagHelper o.. ListConfigKey
+TagHelper o.. OverseaListConfigKey
+TagHelper ..> RecommendTagResult
+
+RecommendTagResult ..> RecommendTag
+RecommendTag ..> RecommendTagType
+
+RecoTagFeedStoreService ..> TagFeedList
+RecoTagFeedStoreService ..> tagTopDAO : rich标签优先从tag_top表取photoIds
+
+class TagController{
+recommendV3()
+}
+
+class RecommendTagService{
+ResultView<RecommendTagResult, Integer> getRecommendTags()
+injectPhotoCounts()
+}
+class TagHelper{
+ReloadableCache<ListMultimap<ExploreLocale, RecommendTagResult>> recommendTopTagCache
+injectRecommendTopTags()
+}
+
+enum ListConfigKey{
+recommendTopTags
+}
+
+enum OverseaListConfigKey{
+overseaRecommendTopTags
+}
+
+class RecommendTagResult{
+RecommendTag recommendTag
+int photoCount
+List<Long> photoIds
+}
+
+
+interface RecommendTag{
+long id
+RecommendTagType tagType
+}
+
+enum RecommendTagType{
+UNKNOWN(0)
+TEXT_TAG(1)
+MMU_TAG(2)
+MUSIC_TAG(3)
+}
+
+
+class RecoTagFeedStoreService{
+MemcachedPool recoTag
+TagFeedList getFeedsFromCache(userId)
+}
+
+TagFeedList o.. TagFeed
+TagFeed o.. TagPageFeed
+class TagFeedList{
+List<TagFeed> list
+long createTime
+}
+
+class TagFeed{
+long id //tagId
+TagType tagType
+List<TagPageFeed> pageFeedList
+}
+
+class TagPageFeed{
+long id //photoId
+}
+
+class tagTopDAO{
+getTop(tagId, locale)
+}
+
+class TagPhotoService{
+MemcachedPool tagNew
+
+Map<Long, Integer> getTagPhotoCounts(Collection<Long> tagIds)
+}
+
+class TagBucketDAO{
+getTagPhotoCount(tagIds)
+}
+
+class grpc.MMUSearchPhotoTagServiceFutureClient{
+getTagById(tagIds)
+}
+
+
+
+
+
+@enduml

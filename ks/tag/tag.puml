@@ -1,0 +1,160 @@
+@startuml
+
+UploadController ..> kafka : PHOTO_UPLOAD_STARTED,PIC_PHOTO_UPLOAD_STARTED
+PhotoUploadStartListener <.. kafka : PHOTO_UPLOAD_STARTED
+PhotoUploadStartListener ..> PhotoShardDAO
+PicPhotoUploadStartListener <.. kafka : PIC_PHOTO_UPLOAD_STARTED
+PicPhotoUploadStartListener ..> PhotoShardDAO
+
+PhotoShardDAO ..> PhotoNewCacheFlush :binlog
+PhotoNewCacheFlush ..> kafka : PHOTO_UPLOAD_ENDED
+PhotoUploadedTagDispatcher <.. kafka : PHOTO_UPLOAD_ENDED
+
+PhotoUploadedMusicDispatcher <.. kafka : PHOTO_UPLOAD_ENDED
+PhotoUploadedMusicDispatcher --> IndexShardDAO
+
+PhotoUploadedTagDispatcher ..> TagPhotoService
+TagPhotoService ..> TagUtils : 1
+TagPhotoService ..> TagService : 2
+TagPhotoService ..> TagScoreHelper : 3.计算score
+TagPhotoService ..> TagBucketDAO : 4
+TagBucketDAO ..> TagPhotoCountFlush : 监听binlog，更新缓存计数
+TagPhotoService ..> kafka : 5.TAG_PHOTO_DISPATCHED
+
+TagReviewingPhotoConsumer <.. kafka : TAG_PHOTO_DISPATCHED
+TagReviewingPhotoConsumer ..> redis.reviewingTagPhotos
+
+TagService ..> TagDAO : 不存在则插入
+
+TagOptController ..> TagOptPermissionService : 1鉴权
+TagOptController ..> TagTopDAO : 2-1.top/uptop
+TagOptController ..> TagService : 2-2.edit...
+
+TagOptPermissionService ..> TagAdminDAO
+
+PhotoService ..> TagPhotoService
+
+class UploadController{
+upload3()
+publish()
+uploadPhoto()
+}
+
+class PhotoUploadStartListener{
+topic=PHOTO_UPLOAD_STARTED
+process()
+}
+class PicPhotoUploadStartListener{
+topic=PIC_PHOTO_UPLOAD_STARTED
+process()
+}
+
+class PhotoNewCacheFlush{
+onUpdate(BaseChangedRow row)
+}
+
+interface kafka{
+}
+
+class PhotoShardDAO{
+insert(Photo photo)
+}
+
+class PhotoUploadedTagDispatcher{
+process(PhotoUploadEndDTO event)
+}
+
+class PhotoUploadedMusicDispatcher{
+process()
+}
+
+class IndexShardDAO{
+insertOrUpdatePhotoIndex(comboId,photoId,bucket,createTime)
+}
+
+class TagService{
+List<IMultiDataAccess<String, Tag>> nameCreateAceessList
+getOrCreateByNames(Collection<String> tagNames)
+    void edit(long tagId, String description);
+    void editCover(long userId, long tagId, byte[] cover);
+    void editBanner(long userId, long tagId, byte[] cover);
+    void editViewOffset(long tagId, long offset);
+    void editLikeOffset(long tagId, long offset);
+    void editPhotoCountOffset(long tagId, long offset);
+    void editAppActionUrl(long tagId, String appActionUrl);
+    void editWebActionUrl(long tagId, String webActionUrl);
+}
+
+class TagPhotoService{
+dispatch(photo)
+remove(ExploreLocale locale, long photoId, long tagId)
+}
+
+class TagUtils{
+Set<String> resolvePlainTags(Photo photo)
+}
+
+class TagScoreHelper{
+long alculateScore(photo)
+}
+
+class TagReviewingPhotoConsumer{
+consume()
+}
+class TagOptController{
+top(long visitorId,String tag,long photoId)
+untop(long visitorId,String tag,long photoId)
+editDescription()
+editCover()
+editBanner()
+editAppActionUrl()
+editWebActionUrl()
+}
+
+class TagOptPermissionService{
+ReloadableCache<SetMultimap<TwoTuple<Long, Long>, TagOptPermission>> cache
+isPermit(long visitorId, long tagId, TagOptPermission permission)
+}
+
+class PhotoService{
+delete(long operatorUserId, long photoId, boolean adminDelete)
+}
+
+class TagDAO{
+createTags(Collection<String> names)
+updateData(long tagId, Consumer<Map<TagKey, Object>> updateOps)
+}
+class TagBucketDAO{
+updatePhoto(String bucket, long tagId, long photoId, long score)
+removePhoto(String bucket, long tagId, long photoId)
+}
+class TagTopDAO{
+addTop(long tagId, long photoId, String locale)
+removeTop(long tagId, long photoId, String locale)
+}
+
+class TagAdminDAO{
+loadAll()
+}
+
+class redis.reviewingTagPhotos{
+sadd(tag, photoId)
+
+}
+
+TagPhotoCountFlush ..> Memcached.tag
+TagPhotoCountFlush ..> Memcached.tagNew
+class TagPhotoCountFlush{
+onUpdate()
+}
+
+class Memcached.tag{
+incr(tagId,delta)
+}
+
+class Memcached.tagNew{
+incr(tagId,delta)
+}
+
+
+@enduml

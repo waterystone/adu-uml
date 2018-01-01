@@ -1,0 +1,115 @@
+@startuml
+
+api.TagRecommendServiceFutureClient-->tag.TagRecommendService
+api.TagSearchServiceFutureClient-->tag.TagSearchService
+api.TagServiceFutureClient-->tag.TagService
+api.TagCountServicFutureClient-->tag.TagCountService
+api.TagDispatchServicFutureClient-->tag.TagDispatchService
+
+tag.TagService->memcached.tagNew:标签缓存
+tag.TagService->dao.TagDAO
+
+tag.TagRecommendService-->zkconfig.recommendTopTags:国内置顶
+tag.TagRecommendService-->zkconfig.overseaRecommendTopTags:海外置顶
+tag.TagRecommendService-->memcached.recoTag:热门RECO
+tag.TagRecommendService-->tag.TagCountService
+tag.TagRecommendService-->tag.TagService
+
+tag.TagSearchService-->component.MMUphotoSearchTagService:MMU标签搜索
+tag.TagSearchService-->component.MusicService:MUSIC标签搜索
+tag.TagSearchService-->es.TagSearchService:ES中TEXT标签搜索
+tag.TagSearchService-->tag.TagCountService
+tag.TagSearchService-->memcached.recoTag:热门RECO
+tag.TagSearchService-->grpc.TagRecoFutureClient
+tag.TagSearchService-->zkconfig.recommendTopTags
+tag.TagSearchService-->zkconfig.overseaRecommendTopTags
+tag.TagSearchService-->dao.TagTopDAO
+tag.TagSearchService-->dao.TagBucketDAO
+tag.TagSearchService-->tag.TagService
+
+tag.TagCountService-->memcached.tagNew:TEXT&MUSIC标签计数缓存
+memcached.tagNew-->dao.TagBucketDAO:TEXT标签计数落地
+memcached.tagNew-->dao.MusicIndexDAO:MUSIC标签计数落地
+tag.TagCountService-->component.MMUphotoSearchTagService:MMU标签计数
+
+
+
+
+class api.TagRecommendServiceFutureClient{
+}
+
+class api.TagSearchServiceFutureClient{
+}
+
+class api.TagServiceFutureClient{
+}
+
+class api.TagCountServicFutureClient{
+}
+
+class api.TagDispatchServicFutureClient{
+}
+
+
+
+class grpc.TagRecoFutureClient{
+}
+
+
+
+class tag.TagRecommendService{
+}
+
+class tag.TagSearchService{
+}
+
+class tag.TagService{
+}
+
+
+
+class tag.TagCountService{
+}
+
+class tag.TagDispatchService{
+}
+
+class component.MMUphotoSearchTagService{
+searchTag(visitor,keyword,count)
+getFeedByCursor(visitorId,tagId,pcursor,count)
+}
+
+class component.MusicService{
+search(keyword)
+}
+
+class zkconfig.recommendTopTags{
+}
+
+class zkconfig.overseaRecommendTopTags{
+}
+
+class memcached.recoTag{
+}
+class memcached.tagNew{
+}
+
+class es.TagSearchService{
+search(keyword)
+}
+
+class dao.TagDAO{
+}
+
+class dao.TagTopDAO{
+getTop(tagId,locale)
+}
+
+class dao.TagBucketDAO{
+}
+
+class dao.MusicIndexDAO{
+}
+
+
+@enduml

@@ -1,0 +1,121 @@
+@startuml
+TagController ..> fitMMU
+fitMMU ..> RecommendTagService : 1.热门
+fitMMU ..> MMUPhotoSearchTagService : 最新
+
+TagController ..> NotfitMMU
+NotfitMMU ..> RecommendTagService : 2.热门
+NotfitMMU ..> TagPhotoService : 最新
+
+RecoTagFeedStoreService ..> TagFeedList
+
+RecommendTagService ..> RecoTagFeedStoreService : 1.1
+RecommendTagService ..> grpc.TagRecoFutureClient : 1.2
+
+RecommendTagService ..> TagHelper : 2.1
+RecommendTagService ..> TagTopDAO : 2.2
+RecommendTagService ..> RecoTagFeedStoreService : 2.3
+RecommendTagService ..> grpc.TagRecoFutureClient : 2.4
+
+
+MMUPhotoSearchTagService ..> grpc.MMUSearchPhotoTagServiceFutureClient
+
+TagPhotoService ..> TagBucketDAO
+
+class TagController{
+list(visitorId,tag,pcursor,count)
+}
+
+class RecommendTagService{
+List<Photo> getRecommendTopPhotosByMmu(tag) //fitMMU
+List<Photo> getRecommendTopPhotosByTextTag(tag) //not fitMMU
+}
+
+class RecoTagFeedStoreService{
+MemcachedPool recoTag
+TagFeedList getFeedsFromCache(visitorId)
+}
+
+TagFeedList o.. TagFeed
+TagFeed o.. TagPageFeed
+class TagFeedList{
+List<TagFeed> list
+long createTime
+}
+
+class TagFeed{
+long id //tagId
+TagType tagType
+List<TagPageFeed> pageFeedList
+}
+
+class TagPageFeed{
+long id //photoId
+}
+
+class grpc.TagRecoFutureClient{
+List<Long>  getTagPage(visitor,tagId,bucket)
+}
+
+class MMUPhotoSearchTagService{
+List<Photo> getFeedByCursor(visitorId,tagId,pcursor,count)
+}
+
+class grpc.MMUSearchPhotoTagServiceFutureClient{
+List<Long> searchPhotoByTag(visitorId,tagId,pcursor,count)
+}
+
+
+TagHelper o.. ListConfigKey
+TagHelper o.. OverseaListConfigKey
+TagHelper ..> RecommendTagResult
+
+RecommendTagResult ..> RecommendTag
+RecommendTag ..> RecommendTagType
+
+class TagHelper{
+ReloadableCache<ListMultimap<ExploreLocale, RecommendTagResult>> recommendTopTagCache
+List<Long> getRecommendTopTag(bucket,tagId)
+}
+
+enum ListConfigKey{
+recommendTopTags
+}
+
+enum OverseaListConfigKey{
+overseaRecommendTopTags
+}
+
+class RecommendTagResult{
+RecommendTag recommendTag
+int photoCount
+List<Long> photoIds
+}
+
+
+interface RecommendTag{
+long id
+RecommendTagType tagType
+}
+
+enum RecommendTagType{
+UNKNOWN(0)
+TEXT_TAG(1)
+MMU_TAG(2)
+MUSIC_TAG(3)
+}
+
+class TagTopDAO{
+getTop(tagId, locale)
+}
+
+class TagPhotoService{
+List<Photo> getRichByCursor(visitorId,tagId,pcursor,count) //rich
+List<Photo> getByCursor(hvisitorId,tagId,pcursor,count) //not rich
+}
+
+class TagBucketDAO{
+Map<Long, Long> getByCursorInBucket(locale,tagId)
+}
+
+@enduml

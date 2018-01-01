@@ -1,0 +1,84 @@
+@startuml
+actor user
+participant TagController
+database kafka
+participant PhotoUploadStartListener
+database PhotoShardDAO
+participant PhotoNewCacheFlush
+participant PhotoUploadedTagDispatcher
+participant TagPhotoService
+participant TagUtils
+participant TagService
+
+database nameContextCache
+database tag
+database tagNew
+database tagDAO
+
+participant TagScoreHelper
+database TagBucketDAO
+participant TagPhotoCountFlush
+
+participant TagReviewingPhotoConsumer
+participant TagReviewingPhotoService
+
+database reviewingTagPhotos
+
+autonumber
+
+user->TagController:upload3()
+activate TagController
+
+TagController->kafka:PHOTO_UPLOAD_STARTED
+TagController->user:success
+deactivate TagController
+
+kafka->PhotoUploadStartListener:PHOTO_UPLOAD_STARTED
+activate PhotoUploadStartListener
+PhotoUploadStartListener->PhotoShardDAO:insert(photo)
+deactivate PhotoUploadStartListener
+
+PhotoShardDAO->PhotoNewCacheFlush:binlog
+activate PhotoNewCacheFlush
+PhotoNewCacheFlush->kafka:PHOTO_UPLOAD_ENDED
+deactivate PhotoNewCacheFlush
+
+kafka->PhotoUploadedTagDispatcher:PHOTO_UPLOAD_ENDED
+activate PhotoUploadedTagDispatcher
+PhotoUploadedTagDispatcher->TagPhotoService:dispatch(photo)
+activate TagPhotoService
+TagPhotoService->TagUtils:Set<String> resolvePlainTags(photo)
+
+
+TagPhotoService->TagService:getOrCreateByNames(plainTags)
+activate TagService
+TagService->nameContextCache:get(plainTags)
+TagService->tagNew:未命中：multiGet(plainTags)
+TagService->tagDAO:未命中：getByNames(plainTags)
+TagService->tagDAO:未命中：createTags(plainTags)
+TagService->tagDAO:getByNames(plainTags)
+TagService->TagPhotoService:Map<String, Tag> tagModelMap
+deactivate TagService
+
+loop <tagId,locale>
+TagPhotoService->TagScoreHelper:long calculateScore(photo)
+TagPhotoService->TagBucketDAO:updatePhoto(locale, tagId, photoId, score)
+TagBucketDAO->TagPhotoCountFlush:binlog
+TagPhotoCountFlush->TagPhotoService:incrTagPhotoCount(tagId,1)
+TagPhotoService->tag:incr(tagId,1)
+note right:在查询tag计数时使用了tagNew并没有使用tag，不知道这里incr有什么用？
+TagPhotoService->tagNew:incr(tagId,1)
+end
+TagPhotoService->kafka:TAG_PHOTO_DISPATCHED
+TagPhotoService->PhotoUploadedTagDispatcher:ok
+deactivate TagPhotoService
+deactivate PhotoUploadedTagDispatcher
+
+kafka->TagReviewingPhotoConsumer:TAG_PHOTO_DISPATCHED
+activate TagReviewingPhotoConsumer
+TagReviewingPhotoConsumer->TagReviewingPhotoService:isReviewingTag(tag)
+TagReviewingPhotoConsumer->TagReviewingPhotoService:if(isReviewingTag)add(tag,photoId)
+TagReviewingPhotoService->reviewingTagPhotos:jedis.sadd(tag, photoId)
+deactivate TagReviewingPhotoConsumer
+
+@enduml

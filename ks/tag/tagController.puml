@@ -1,0 +1,91 @@
+@startuml
+
+TagController ..> TagHelper : 置顶
+TagController ..> RecoTagFeedStoreService : 下拉
+
+TagHelper ..> RecommendTagResult
+TagHelper ..> OverseaListConfigKey
+TagHelper ..> ListConfigKey
+
+RecommendTagResult ..> RecommendTag
+RecommendTag ..> RecommendTagType
+
+RecoTagFeedStoreService <|-- RecoTagFeedStoreServiceImpl
+RecoTagFeedStoreServiceImpl ..> RecoFeedCacheUtils
+RecoTagFeedStoreServiceImpl ..> MemcachedPool
+RecoTagFeedStoreServiceImpl ..> TagFeedList
+RecoFeedCacheUtils ..> TagFeedList
+
+TagFeedList ..> TagFeed
+
+class TagController{
++ reommendV3()
++ searchV2()
++ list()
+}
+
+class TagHelper{
+ReloadableCache<ListMultimap<ExploreLocale, RecommendTagResult>> recommendTopTagCache
+
+Set<RecommendTag> getRecommendTopTags(exploreLocale)
+}
+
+class RecommendTagResult {
+- RecommendTag recommendTag;
+- int photoCount;
+- List<Long> photoIds;
+}
+
+class RecommendTag{
+- long id;
+- RecommendTagType recommendTagType;
+}
+
+enum RecommendTagType{
+UNKNOWN(0)
+TEXT_TAG(1)
+MMU_TAG(2)
+MUSIC_TAG(3)
+}
+
+enum OverseaListConfigKey{
+overseaRecommendTopTags(TopTag.class)
+}
+
+enum ListConfigKey{
+recommendTopTags(TopTag.class)
+}
+
+
+
+interface RecoTagFeedStoreService{
+TagFeedList getFeedsFromCache(userId)
+}
+
+class RecoTagFeedStoreServiceImpl{
+MemcachedPool recoTag
+TagFeedList getFeedsFromCache(userId)
+}
+
+class RecoFeedCacheUtils {
+TagFeedList getFeedsFromCache()
+}
+
+enum MemcachedPool{
+recoTag
+}
+
+class TagFeedList {
+List<TagFeed> list;
+long createTime;
+}
+
+class TagFeed {
+long id
+int reason
+}
+
+
+
+
+@enduml

@@ -1,0 +1,64 @@
+@startuml
+
+TagController ..> MMUPhotoSearchTagService : 1.MMU
+TagController ..> TagSearchService : 2.TEXT
+TagController ..> MusicService : 3.音乐
+
+
+MMUPhotoSearchTagService ..> grpc.MMUSearchPhotoTagServiceFutureClient
+
+TagSearchService ..> es.TagSearchService : 2.1.搜TEXT标签
+TagSearchService ..> TagPhotoService : 2.2.计数
+
+MusicService ..> grpc.AdminMusicServiceFutureClient : 3.1.搜相关音乐
+MusicService ..> TagPhotoService : 3.2.计数
+
+TagPhotoService ..> MusicIndexDAO : music缓存未命中
+TagPhotoService ..> TagBucketDAO : TEXT缓存未命中
+
+
+class TagController{
+searchV2(visitor,keyword,count)
+}
+
+class MMUPhotoSearchTagService{
+Map<String, Integer> search(visitor, keyword, count)
+}
+
+class grpc.MMUSearchPhotoTagServiceFutureClient{
+Map<String, Integer> searchTag(visitor, keyword, count)
+}
+
+class TagSearchService{
+Map<String, Integer> search(visitor, keyword, count)
+}
+
+class es.TagSearchService{
+List<Long> search(keyword)
+}
+
+class TagBucketDAO{
+Map<String, Integer> getTagPhotoCount(keys)
+}
+
+class MusicService{
+search(keyword)
+}
+
+class grpc.AdminMusicServiceFutureClient{
+List<Music> get(keyword)
+}
+
+class TagPhotoService{
+MemcachedPool tagNew
+
+Map<Long, Integer> getExactlyTagPhotoCounts(visitor,tags) //count小于100的要check
+Map<Long, Integer>getExactlyMusicTagPhotoCounts(visitor, musicIds) //count小于100的要check
+}
+
+class MusicIndexDAO{
+Map<MusicComboId, Integer>  getMusicPhotoCount(musicIds,bucket)
+}
+
+
+@enduml
