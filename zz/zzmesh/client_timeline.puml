@@ -1,0 +1,64 @@
+@startuml
+
+box "调用方pod"
+participant 调用方进程 AS client
+participant 调用方proxy AS clientProxy
+end box
+
+participant "Control Center" AS controlCenter
+participant Collector AS collector
+participant Srvmgr AS srvmgr
+
+box "服务方Pod"
+participant 服务方proxy AS serviceProxy
+participant 服务方进程 AS service
+end box
+
+autonumber
+client -> client: 启动，并初始化key
+
+clientProxy -> clientProxy: 启动，等待调用方通知
+
+loop
+client -> clientProxy: 通知启动成功
+end
+clientProxy -> client: ACK
+
+clientProxy -> controlCenter: 注册
+
+clientProxy -> srvmgr: 拉取初始配置（服务列表，路由策略等）
+clientProxy -> clientProxy: 创建连接池，探测、高可用、负载等
+
+activate client
+client -> clientProxy: 调用服务
+
+activate clientProxy
+clientProxy -> serviceProxy: 调用服务
+
+activate serviceProxy
+serviceProxy -> service: 调用服务
+
+activate service
+service -> service: 执行
+service -> serviceProxy: 返回结果
+deactivate service
+
+serviceProxy -> clientProxy: 返回结果
+deactivate serviceProxy
+
+clientProxy -> client: 返回结果
+deactivate clientProxy
+
+
+deactivate client
+
+......
+clientProxy -> collector: 上报监控数据
+
+......
+srvmgr -> controlCenter: 下发管控指令（服务节点变更、配置参数变更）
+controlCenter -> clientProxy: 指令下推
+clientProxy -> clientProxy: 指令解析与执行
+......
+
+@enduml
