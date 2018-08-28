@@ -53,6 +53,9 @@ deactivate clientProxy
 deactivate client
 
 ......
+client -> collector: 上报监控数据
+
+......
 clientProxy -> collector: 上报监控数据
 
 ......
