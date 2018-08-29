@@ -27,9 +27,6 @@ serviceProxy -> serviceProxy: 缓存整理（多个Map）
 serviceProxy -> serviceProxy: 监听端口，开始接收请求
 
 ......
-service -> collector: 上报监控数据
-
-......
 serviceProxy -> collector: 上报监控数据
 
 ......
