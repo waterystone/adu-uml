@@ -1,0 +1,72 @@
+@startuml
+actor user
+
+box "slf4j"
+participant Log4jLogger
+end box
+
+box "log4j2"
+participant AsyncLoggerConfig
+end box
+
+box "disruptor"
+control RingBuffer
+participant BatchEventProcessor
+end box
+
+box "log4j2 "
+participant RollingRandomAccessFileAppender
+participant AbstractOutputStreamAppender
+participant RollingRandomAccessFileManager
+end box
+
+box "java.io"
+participant RandomAccessFile
+end box
+
+autonumber
+
+activate user
+user -> Log4jLogger: logger.info()
+
+activate Log4jLogger
+Log4jLogger -> AsyncLoggerConfig: processLogEvent()
+
+activate AsyncLoggerConfig
+AsyncLoggerConfig -> RingBuffer: tryPublishEvent()
+return ok
+return ok
+
+deactivate AsyncLoggerConfig
+deactivate Log4jLogger
+deactivate user
+
+
+== 产生log与落地解耦 ==
+
+
+autonumber 1
+
+
+RingBuffer -> BatchEventProcessor: onEvent()
+
+activate BatchEventProcessor
+BatchEventProcessor -> RollingRandomAccessFileAppender: append()
+
+activate RollingRandomAccessFileAppender
+RollingRandomAccessFileAppender -> AbstractOutputStreamAppender: append()
+
+activate AbstractOutputStreamAppender
+AbstractOutputStreamAppender -[#0000FF]> RollingRandomAccessFileManager: flush()
+
+group 同步块
+activate RollingRandomAccessFileManager
+RollingRandomAccessFileManager -> RandomAccessFile: write()
+deactivate RollingRandomAccessFileManager
+end
+
+deactivate AbstractOutputStreamAppender
+deactivate RollingRandomAccessFileAppender
+deactivate BatchEventProcessor
+
+@enduml

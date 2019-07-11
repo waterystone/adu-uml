@@ -1,0 +1,75 @@
+@startuml
+actor user
+
+box "slf4j"
+participant Log4jLogger
+end box
+
+box "log4j2"
+participant LoggerConfig
+participant ConsoleAppender
+participant AbstractOutputStreamAppender
+participant OutputStreamManager
+end box
+
+box "java.io"
+participant PrintStream
+participant BufferedOutputStream
+participant FileOutputStream
+end box
+
+autonumber
+
+activate user
+user -> Log4jLogger: logger.info()
+
+activate Log4jLogger
+Log4jLogger -> LoggerConfig: processLogEvent()
+
+activate LoggerConfig
+LoggerConfig -> ConsoleAppender: append()
+
+activate ConsoleAppender
+ConsoleAppender -> AbstractOutputStreamAppender: append()
+
+
+activate AbstractOutputStreamAppender
+AbstractOutputStreamAppender -[#0000FF]> OutputStreamManager: synchronized flush()
+
+group 同步块
+activate OutputStreamManager
+OutputStreamManager -> PrintStream: write()
+
+activate PrintStream
+PrintStream -> BufferedOutputStream: write()
+
+activate BufferedOutputStream
+BufferedOutputStream -> FileOutputStream: write()
+deactivate BufferedOutputStream
+
+deactivate PrintStream
+
+OutputStreamManager -> PrintStream: flush()
+
+activate PrintStream
+PrintStream -> BufferedOutputStream: flush()
+activate BufferedOutputStream
+BufferedOutputStream -> FileOutputStream: flush()
+deactivate BufferedOutputStream
+
+deactivate PrintStream
+
+deactivate OutputStreamManager
+end
+
+deactivate AbstractOutputStreamAppender
+
+deactivate ConsoleAppender
+
+deactivate LoggerConfig
+
+deactivate Log4jLogger
+
+deactivate user
+
+@enduml
